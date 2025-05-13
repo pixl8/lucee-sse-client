@@ -1,0 +1,22 @@
+{
+    "name":"Lucee SSE Client",
+    "author":"Pixl8 Group",
+    "version":"$VERSION_NUMBER",
+    "location":"$DOWNLOAD_URL",
+    "slug":"lucee-sse-client",
+    "type":"modules",
+    "homepage":"https://github.com/pixl8/lucee-sse-client",
+    "documentation":"https://github.com/pixl8/lucee-sse-client",
+    "repository":{
+        "type":"git",
+        "url":"https://github.com/pixl8/lucee-sse-client"
+    },
+    "shortDescription":"A module to provide APIs for consuming SSE HTTP endpoints",
+    "contributors":[
+        "Dominic Watson <watson.dominic@gmail.com>"
+    ],
+    "ignore":[
+        "**/.*",
+        "java/*"
+    ]
+}
