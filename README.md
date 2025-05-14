@@ -41,23 +41,19 @@ Bare bones example of a listener component:
 ```cfc
 component implements="lucee-sse-client.models.ILuceeSseClientListener" {
 
-	public function onEvent( required numeric id, required string event, required string data, required LuceeSseClient sseClient ){
-		SystemOutput( "New event [#arguments.event#][#arguments.id#]: #arguments.data#", true );
-
-		if ( arguments.data == "STOP" ) {
-			arguments.sseClient.stop();
-		}
+	public function onEvent( string id, string event, string data, LuceeSseClient sseClient ){
+		SystemOutput( "New event [#arguments.event ?: ''#][#arguments.id ?: ''#]: #arguments.data ?: ''#", true );
 	}
 
-	public function onError( requried any throwable, required LuceeSseClient sseClient ){
+	public function onError( any throwable, LuceeSseClient sseClient ){
 		SystemOutput( "An error happened", true );
 	}
 
-	public function onReconnect( requried any response, required boolean hasReceivedEvents, required numeric lastEventID, required LuceeSseClient sseClient ){
+	public function onReconnect( any response, boolean hasReceivedEvents, string lastEventID, LuceeSseClient sseClient ){
 		SystemOutput( "Reconnected", true );
 	}
 
-	public function onClose( requried any response, required LuceeSseClient sseClient ){
+	public function onClose( any response, LuceeSseClient sseClient ){
 		SystemOutput( "Connection closed", true );
 	}
 }

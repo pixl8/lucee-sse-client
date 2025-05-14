@@ -50,7 +50,7 @@ component {
 	}
 
 	public function setBody( required string body ) {
-		variables._javaClient.setHttpRequestBody( CreateObject( "java", "java.net.http.HttpRequest.BodyPublisher" ).ofString( body ) );
+		variables._javaClient.setHttpRequestBody( CreateObject( "java", "java.net.http.HttpRequest$BodyPublishers" ).ofString( body ) );
 
 		return this;
 	}
