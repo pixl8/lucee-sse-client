@@ -5,8 +5,10 @@ component {
 
 // CONSTRUCTOR & SETUP
 	public any function init( required ILuceeSseClientListener cfcListener ) {
-		variables._javaClient = NullValue();
-		variables.cfcListener = arguments.cfcListener;
+		variables._javaClient  = NullValue();
+		variables._response    = {};
+		variables._events      = [];
+		variables._cfcListener = arguments.cfcListener;
 
 		return this;
 	}
@@ -17,16 +19,19 @@ component {
 
 // LISTENER PROXIES
 	public function onEvent( id, event, data ) {
-		variables.cfcListener.onEvent( argumentCollection=arguments, sseClient=this );
+		ArrayAppend( variables._events, StructCopy( arguments ) );
+		variables._cfcListener.onEvent( argumentCollection=arguments, sseClient=this );
 	}
 	public function onError( throwable ) {
-		variables.cfcListener.onError( argumentCollection=arguments, sseClient=this );
+		variables._error = arguments.throwable;
+		variables._cfcListener.onError( argumentCollection=arguments, sseClient=this );
 	}
 	public function onReconnect( response, hasReceivedEvents, lastEventID ) {
-		variables.cfcListener.onReconnect( argumentCollection=arguments, sseClient=this );
+		variables._cfcListener.onReconnect( argumentCollection=arguments, sseClient=this );
 	}
 	public function onClose( response ) {
-		variables.cfcListener.onClose( argumentCollection=arguments, sseClient=this );
+		variables._response = _parseJavaResponse( arguments.response );
+		variables._cfcListener.onClose( argumentCollection=arguments, sseClient=this );
 	}
 
 // REQUEST PREPARATION
@@ -84,6 +89,35 @@ component {
 	}
 	public function isRunning() {
 		return variables._javaClient.isRunning();
+	}
+
+	public function getResponse() {
+		return variables._response;
+	}
+
+// PRIVATE HELPERS
+	private function _parseJavaResponse( response ){
+		var resp = {
+			  statusCode = arguments.response.statusCode()
+			, body       = arguments.response.body()
+			, uri        = arguments.response.uri().toString()
+			, events     = variables._events
+			, headers    = {}
+		};
+		var headerMap = arguments.response.headers().map();
+		for( var key in headerMap ) {
+			if ( IsArray( headerMap[ key ] ) && ArrayLen( headerMap[ key ]) == 1 ) {
+				resp.headers[ key ] = headerMap[ key ][ 1 ];
+			} else {
+				resp.headers[ key ] = headerMap[ key ];
+			}
+		}
+
+		if ( StructKeyExists( variables, "_error" ) ) {
+			resp.error = variables._error;
+		}
+
+		return resp;
 	}
 
 }
