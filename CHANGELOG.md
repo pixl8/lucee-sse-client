@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.5
+
+* [#1](https://github.com/pixl8/lucee-sse-client/issues/1) Fix issue with non SSE based response body being lost
+
 ## v1.0.1
 
 * Change interface for listeners: remove 'required' from all arguments as they may or may not be present
