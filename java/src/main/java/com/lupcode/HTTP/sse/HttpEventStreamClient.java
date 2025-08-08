@@ -101,6 +101,7 @@ public class HttpEventStreamClient {
 	protected HashSet<EventStreamListener> listeners = new HashSet<>();
 	protected HashSet<InternalEventStreamAdapter> internalListeners = new HashSet<>();
 	protected CompletableFuture<HttpResponse<Void>> running = null;
+	protected StringBuilder rawResponse = new StringBuilder();
 
 	/**
 	 * Creates a HTTP client that listens for Server-Sent Events (SSE).
@@ -529,6 +530,14 @@ public class HttpEventStreamClient {
 	}
 
 	/**
+	 * Returns the raw response from the server
+	 * @return Raw response from the server
+	 */
+	public String getRawResponse() {
+		return rawResponse.toString();
+	}
+
+	/**
 	 * Starts listening for SSE events and immediately returns.
 	 * If client looses connection then automatically reconnects.
 	 * Multiple calls will not start multiple listening
@@ -591,6 +600,7 @@ public class HttpEventStreamClient {
 			@Override
 			public void accept(Optional<byte[]> t) {
 				if(t.isPresent()) {
+					rawResponse.append(new String(t.get(), StandardCharsets.UTF_8));
 					hasReceivedEvents.set(true);
 					reconnectWithoutEvents.set(0);
 
@@ -726,4 +736,3 @@ public class HttpEventStreamClient {
 		return this;
 	}
 }
-

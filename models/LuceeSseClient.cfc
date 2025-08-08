@@ -104,6 +104,11 @@ component {
 			, events     = variables._events
 			, headers    = {}
 		};
+
+		if ( IsNull( resp.body ) ) {
+			resp.body = variables._javaClient.getRawResponse();
+		}
+
 		var headerMap = arguments.response.headers().map();
 		for( var key in headerMap ) {
 			if ( IsArray( headerMap[ key ] ) && ArrayLen( headerMap[ key ]) == 1 ) {
