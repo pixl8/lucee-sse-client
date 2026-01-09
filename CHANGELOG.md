@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.6
+
+* Add a basic test suite
+* Add compat for jakarta based environments (e.g. Lucee 7)
+
 ## v1.0.5
 
 * [#1](https://github.com/pixl8/lucee-sse-client/issues/1) Fix issue with non SSE based response body being lost
