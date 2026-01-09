@@ -1,0 +1,14 @@
+{
+    "app":{
+        "cfengine":"lucee@7"
+    },
+    "name":"lucee-sse-client-tests",
+    "openbrowser":false,
+    "trayEnable":false,
+    "web":{
+        "http":{
+            "port":"6557"
+        },
+        "webroot":"./"
+    }
+}
