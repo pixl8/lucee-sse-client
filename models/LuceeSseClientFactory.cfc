@@ -26,10 +26,24 @@ component {
 	private function _registerOsgiBundle() {
 		var cfmlEngine = CreateObject( "java", "lucee.loader.engine.CFMLEngineFactory" ).getInstance();
 		var osgiUtil   = CreateObject( "java", "lucee.runtime.osgi.OSGiUtil" );
-		var lib        = GetDirectoryFromPath( GetCurrentTemplatePath() ) & "../lib/luceesseclient-1.0.0.jar";
+		var jar        = _isJakarta() ? "luceesseclient-jakarta.jar" : "luceesseclient-javax.jar";
+		var lib        = ExpandPath( GetDirectoryFromPath( GetCurrentTemplatePath() ) & "../lib/#jar#" );
 		var resource   = cfmlEngine.getResourceUtil().toResourceExisting( getPageContext(), lib );
 
 		osgiUtil.installBundle( cfmlEngine.getBundleContext(), resource, true );
+	}
+
+	private function _isJakarta() {
+		if ( !StructKeyExists( variables, "isJakarta" ) ) {
+			try {
+				CreateObject( "java", "jakarta.servlet.ServletException" );
+				variables.isJakarta = true;
+			} catch( any e ) {
+				variables.isJakarta = false;
+			}
+		}
+
+		return variables.isJakarta;
 	}
 
 }
