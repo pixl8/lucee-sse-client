@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.7
+
+* Fix `getResponse()` returning an empty struct (and the close handler silently failing) under Java 11+ / JPMS: the response is a `jdk.internal.net.http.HttpResponseImpl`, which lucee cannot reflect on because `java.net.http` does not open its internal package. Status/uri/headers are now read via the public `java.net.http.HttpResponse` interface so no `--add-opens` is required
+* Fix blocking `start()` hanging forever when the close handler errored: the completion flag is now always set (via `finally`) and `start()` uses the `isRunning()` exit with a bounded grace window, so a failing/slow close handler can never wedge the caller
+* Guard a null response in the close handler (request completed exceptionally, e.g. a connection reset) instead of throwing a swallowed NPE
+* Flush a trailing SSE event that is not terminated by a final blank line before the stream closes (common on error/aborted responses) instead of silently discarding it
+* Fix dangling `else` in `stop()` so a not-yet-done future is cancelled correctly
+
 ## v1.0.6
 
 * Add a basic test suite

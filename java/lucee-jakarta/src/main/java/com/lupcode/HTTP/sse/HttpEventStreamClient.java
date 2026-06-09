@@ -605,73 +605,86 @@ public class HttpEventStreamClient {
 					reconnectWithoutEvents.set(0);
 
 					sb.append(new String(t.get(), StandardCharsets.UTF_8));
-					int index;
-					while((index = sb.indexOf("\n\n")) >= 0) {
-						String[] lines = sb.substring(0, index).split("\n");
-						sb.delete(0, index+2); // delete first block including "\n\n"
-						boolean hasDataOrEvent = false, updatedEventID = false;
-						for(String line : lines) {
-							int idx = line.indexOf(':');
-							if(idx<=0) continue; // ignore invalids or comments
-							String key = line.substring(0, idx), value = line.substring(idx+1).trim();
-							switch(key.trim().toLowerCase()) {
-								case "event":
-									this.event = value;
-									hasDataOrEvent = true;
-									break;
+					drain();
+				} else {
+					// End of stream. Flush any remaining complete event that was not
+					// terminated by a trailing blank line. Servers commonly omit the
+					// final "\n\n" when they close the connection right after emitting
+					// an error event, which would otherwise be silently discarded.
+					if(sb.length() > 0) {
+						sb.append("\n\n");
+						drain();
+					}
+				}
+			}
 
-								case "data":
-									if(data.length() > 0) data.append("\n");
-									data.append(value);
-									hasDataOrEvent = true;
-									break;
+			private void drain() {
+				int index;
+				while((index = sb.indexOf("\n\n")) >= 0) {
+					String[] lines = sb.substring(0, index).split("\n");
+					sb.delete(0, index+2); // delete first block including "\n\n"
+					boolean hasDataOrEvent = false, updatedEventID = false;
+					for(String line : lines) {
+						int idx = line.indexOf(':');
+						if(idx<=0) continue; // ignore invalids or comments
+						String key = line.substring(0, idx), value = line.substring(idx+1).trim();
+						switch(key.trim().toLowerCase()) {
+							case "event":
+								this.event = value;
+								hasDataOrEvent = true;
+								break;
 
-								case "id":
-									try {
-										lastEventID = Long.parseLong(value);
-										updatedEventID = true;
-									} catch (Exception ex) {
-										for(InternalEventStreamAdapter l : internalListeners)
-											try { l.onError(HttpEventStreamClient.this, ex); } catch (Exception ex1) {}
-										for(EventStreamListener l : listeners)
-											try { l.onError(HttpEventStreamClient.this, ex); } catch (Exception ex1) {}
-									}
-									break;
+							case "data":
+								if(data.length() > 0) data.append("\n");
+								data.append(value);
+								hasDataOrEvent = true;
+								break;
 
-								case "retry":
-									try {
-										retryCooldown = Long.parseLong(value);
-									} catch (Exception ex) {
-										for(InternalEventStreamAdapter l : internalListeners)
-											try { l.onError(HttpEventStreamClient.this, ex); } catch (Exception ex1) {}
-										for(EventStreamListener l : listeners)
-											try { l.onError(HttpEventStreamClient.this, ex); } catch (Exception ex1) {}
-									}
-									break;
-
-								default: break;
-							}
-						}
-
-						if(hasDataOrEvent) {
-							if(!updatedEventID) lastEventID++;
-							Event event = new Event(lastEventID, this.event, this.data.toString());
-							for(InternalEventStreamAdapter listener : internalListeners)
+							case "id":
 								try {
-									listener.onEvent(HttpEventStreamClient.this, event);
+									lastEventID = Long.parseLong(value);
+									updatedEventID = true;
 								} catch (Exception ex) {
 									for(InternalEventStreamAdapter l : internalListeners)
 										try { l.onError(HttpEventStreamClient.this, ex); } catch (Exception ex1) {}
-								}
-							for(EventStreamListener listener : listeners)
-								try {
-									listener.onEvent(HttpEventStreamClient.this, event);
-								} catch (Exception ex) {
 									for(EventStreamListener l : listeners)
 										try { l.onError(HttpEventStreamClient.this, ex); } catch (Exception ex1) {}
 								}
-							this.data.setLength(0);
+								break;
+
+							case "retry":
+								try {
+									retryCooldown = Long.parseLong(value);
+								} catch (Exception ex) {
+									for(InternalEventStreamAdapter l : internalListeners)
+										try { l.onError(HttpEventStreamClient.this, ex); } catch (Exception ex1) {}
+									for(EventStreamListener l : listeners)
+										try { l.onError(HttpEventStreamClient.this, ex); } catch (Exception ex1) {}
+								}
+								break;
+
+							default: break;
 						}
+					}
+
+					if(hasDataOrEvent) {
+						if(!updatedEventID) lastEventID++;
+						Event event = new Event(lastEventID, this.event, this.data.toString());
+						for(InternalEventStreamAdapter listener : internalListeners)
+							try {
+								listener.onEvent(HttpEventStreamClient.this, event);
+							} catch (Exception ex) {
+								for(InternalEventStreamAdapter l : internalListeners)
+									try { l.onError(HttpEventStreamClient.this, ex); } catch (Exception ex1) {}
+							}
+						for(EventStreamListener listener : listeners)
+							try {
+								listener.onEvent(HttpEventStreamClient.this, event);
+							} catch (Exception ex) {
+								for(EventStreamListener l : listeners)
+									try { l.onError(HttpEventStreamClient.this, ex); } catch (Exception ex1) {}
+							}
+						this.data.setLength(0);
 					}
 				}
 			}
@@ -724,10 +737,12 @@ public class HttpEventStreamClient {
 		running = null;
 		HttpResponse<Void> response = null;
 		if(run!=null) {
-			if(run.isDone())
+			if(run.isDone()) {
 				if(!run.isCancelled() && !run.isCompletedExceptionally())
 					response = run.getNow(null);
-			else run.cancel(true);
+			} else {
+				run.cancel(true);
+			}
 		}
 		for(InternalEventStreamAdapter listener : internalListeners)
 			try { listener.onClose(this, response); } catch (Exception e) {}
