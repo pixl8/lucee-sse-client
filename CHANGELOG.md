@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.8
+
+* Fix issue where java throwable was not correctly passed to the Lucee listener on onError event
+
 ## v1.0.7
 
 * Fix `getResponse()` returning an empty struct (and the close handler silently failing) under Java 11+ / JPMS: the response is a `jdk.internal.net.http.HttpResponseImpl`, which lucee cannot reflect on because `java.net.http` does not open its internal package. Status/uri/headers are now read via the public `java.net.http.HttpResponse` interface so no `--add-opens` is required
