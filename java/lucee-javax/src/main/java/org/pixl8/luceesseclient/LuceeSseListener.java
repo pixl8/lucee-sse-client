@@ -1,20 +1,27 @@
 package org.pixl8.luceesseclient;
 
 import java.io.File;
-import javax.servlet.ServletException;
-import javax.servlet.http.Cookie;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.lang.reflect.InvocationTargetException;
 import java.net.http.HttpResponse;
 import java.util.HashMap;
+import java.util.concurrent.ExecutionException;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.Cookie;
 
 import com.lupcode.HTTP.sse.EventStreamListener;
 import com.lupcode.HTTP.sse.HttpEventStreamClient;
 import com.lupcode.HTTP.sse.HttpEventStreamClient.Event;
 
-import lucee.loader.engine.*;
+import lucee.loader.engine.CFMLEngine;
+import lucee.loader.engine.CFMLEngineFactory;
 import lucee.runtime.Component;
-import lucee.runtime.type.Struct;
 import lucee.runtime.PageContext;
+import lucee.runtime.exp.IPageException;
 import lucee.runtime.exp.PageException;
+import lucee.runtime.type.Struct;
 
 
 public class LuceeSseListener implements EventStreamListener {
@@ -44,7 +51,7 @@ public class LuceeSseListener implements EventStreamListener {
 	public void onError(HttpEventStreamClient client, Throwable throwable) {
 		Struct args = lucee.getCreationUtil().createStruct();
 
-		args.put( "e", throwable  );
+		args.put( "throwable", throwableToStruct( throwable ) );
 
 		callListenerCfc( "onError", args );
 	}
@@ -67,6 +74,111 @@ public class LuceeSseListener implements EventStreamListener {
 	}
 
 // PRIVATE UTILITY
+	private Struct throwableToStruct( Throwable throwable ) {
+		Struct error = lucee.getCreationUtil().createStruct();
+
+		if ( throwable == null ) {
+			error.put( "message"   , "Unknown SSE client error" );
+			error.put( "errorCode" , Double.valueOf( 500 ) );
+			error.put( "retryable" , Boolean.FALSE );
+			return error;
+		}
+
+		Throwable relevant = unwrapThrowable( throwable );
+
+		if ( relevant instanceof IPageException ) {
+			IPageException pageException = (IPageException) relevant;
+
+			error.put( "message"   , messageFor( relevant ) );
+			error.put( "errorCode" , parseErrorCode( pageException.getErrorCode() ) );
+			error.put( "retryable" , Boolean.FALSE );
+
+			try {
+				error.put( "detail", pageException.getCatchBlock( getPageContext() ) );
+			} catch ( ServletException e ) {
+				error.put( "detail", pageExceptionDetail( pageException ) );
+			}
+
+			return error;
+		}
+
+		error.put( "message"   , messageFor( relevant ) );
+		error.put( "errorCode" , Double.valueOf( 500 ) );
+		error.put( "detail"    , javaThrowableDetail( relevant ) );
+		error.put( "retryable" , Boolean.FALSE );
+
+		return error;
+	}
+
+	private Struct pageExceptionDetail( IPageException pageException ) {
+		Struct detail = lucee.getCreationUtil().createStruct();
+
+		detail.put( "type"         , pageException.getTypeAsString() );
+		detail.put( "detail"       , pageException.getDetail() );
+		detail.put( "extendedInfo" , pageException.getExtendedInfo() );
+		detail.put( "stackTrace"   , pageException.getStackTraceAsString() );
+
+		return detail;
+	}
+
+	private Struct javaThrowableDetail( Throwable throwable ) {
+		Struct detail = lucee.getCreationUtil().createStruct();
+
+		detail.put( "type"       , throwable.getClass().getName() );
+		detail.put( "stackTrace" , stackTraceToString( throwable ) );
+
+		if ( throwable.getCause() != null && throwable.getCause() != throwable ) {
+			detail.put( "cause", throwable.getCause().getMessage() );
+		}
+
+		return detail;
+	}
+
+	private Throwable unwrapThrowable( Throwable throwable ) {
+		Throwable current = throwable;
+
+		while ( current instanceof ExecutionException || current instanceof InvocationTargetException ) {
+			if ( current.getCause() == null || current.getCause() == current ) {
+				break;
+			}
+
+			current = current.getCause();
+		}
+
+		return current;
+	}
+
+	private String messageFor( Throwable throwable ) {
+		String message = throwable.getMessage();
+
+		if ( message == null || message.isEmpty() ) {
+			return throwable.getClass().getSimpleName();
+		}
+
+		return message;
+	}
+
+	private Double parseErrorCode( String errorCode ) {
+		if ( errorCode == null || errorCode.isEmpty() ) {
+			return Double.valueOf( 500 );
+		}
+
+		try {
+			return Double.valueOf( Integer.parseInt( errorCode.trim() ) );
+		} catch ( NumberFormatException e ) {
+			return Double.valueOf( 500 );
+		}
+	}
+
+	private String stackTraceToString( Throwable throwable ) {
+		StringWriter writer = new StringWriter();
+		PrintWriter  print  = new PrintWriter( writer );
+
+		throwable.printStackTrace( print );
+
+		return writer.toString();
+	}
+
 	private void callListenerCfc( String method, Struct args ) {
 		try {
 			listenerCfc.callWithNamedValues( getPageContext(), method, args );
