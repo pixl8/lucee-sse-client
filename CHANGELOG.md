@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.9
+
+* Advertise errors related to network disconnects as retryable
+
 ## v1.0.8
 
 * Fix issue where java throwable was not correctly passed to the Lucee listener on onError event
