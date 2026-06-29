@@ -105,9 +105,39 @@ public class LuceeSseListener implements EventStreamListener {
 		error.put( "message"   , messageFor( relevant ) );
 		error.put( "errorCode" , Double.valueOf( 500 ) );
 		error.put( "detail"    , javaThrowableDetail( relevant ) );
-		error.put( "retryable" , Boolean.FALSE );
+		error.put( "retryable" , isStreamResetError( relevant ) ? Boolean.TRUE : Boolean.FALSE );
+
+		applyStreamResetMessage( error, relevant );
 
 		return error;
+	}
+
+	private void applyStreamResetMessage( Struct error, Throwable throwable ) {
+		if ( !isStreamResetError( throwable ) ) {
+			return;
+		}
+
+		error.put( "message"   , "Connection interrupted during long processing. The stream was reset, often due to a proxy idle timeout." );
+		error.put( "errorCode" , Double.valueOf( 504 ) );
+		error.put( "retryable" , Boolean.TRUE );
+	}
+
+	private boolean isStreamResetError( Throwable throwable ) {
+		String message = messageFor( throwable );
+
+		if ( message.contains( "RST_STREAM" ) ) {
+			return true;
+		}
+
+		Throwable cause = throwable.getCause();
+		if ( cause != null && cause != throwable ) {
+			String causeMessage = cause.getMessage();
+			if ( causeMessage != null && causeMessage.contains( "RST_STREAM" ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private Struct pageExceptionDetail( IPageException pageException ) {
